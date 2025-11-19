@@ -8,7 +8,6 @@ from launch.substitutions.path_join_substitution import PathJoinSubstitution
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 from webots_ros2_driver.webots_launcher import Ros2SupervisorLauncher
-from webots_ros2_driver.webots_controller import WebotsController
 from webots_ros2_driver.wait_for_controller_connection import (
     WaitForControllerConnection,
 )
@@ -19,22 +18,26 @@ package_dir = get_package_share_directory("webots_spot")
 
 # Define all the ROS 2 nodes that need to be restart on simulation reset here
 def get_ros2_nodes(*args):
-    # SpotArm Driver node
+    # Manually launch the SpotArm driver to force localhost connection
+    webots_controller_executable = os.path.join(get_package_share_directory('webots_ros2_driver'), 'scripts', 'webots-controller')
     spotarm_ros2_control_params = os.path.join(
         package_dir, "resource", "spotarm_ros2_controllers.yaml"
     )
-    spotarm_driver = WebotsController(
-        robot_name="SpotArm",
-        parameters=[
-            {
-                "robot_description": os.path.join(
-                    package_dir, "resource", "spotarm_control.urdf"
-                )
-            },
-            {"use_sim_time": True},
-            {"set_robot_state_publisher": False},
-            spotarm_ros2_control_params,
+    spotarm_driver = ExecuteProcess(
+        cmd=[
+            webots_controller_executable,
+            '--robot-name=SpotArm',
+            '--protocol=tcp',
+            '--ip-address=127.0.0.1',  # Force localhost
+            '--port=1234',
+            'ros2',
+            '--ros-args',
+            '-p', 'robot_description:=' + os.path.join(package_dir, "resource", "spotarm_control.urdf"),
+            '-p', 'use_sim_time:=True',
+            '-p', 'set_robot_state_publisher:=False',
+            '--params-file', spotarm_ros2_control_params,
         ],
+        output='screen'
     )
 
     # ROS2 control spawners for SpotArm
@@ -76,9 +79,10 @@ def get_ros2_nodes(*args):
     ]
 
     # Wait for the simulation to be ready to start RViz, the navigation and spawners
-    waiting_nodes = WaitForControllerConnection(
-        target_driver=spotarm_driver, nodes_to_start=ros2_control_spawners
-    )
+    # We can't wait for the driver anymore, so we just return the spawners
+    # waiting_nodes = WaitForControllerConnection(
+    #     target_driver=spotarm_driver, nodes_to_start=ros2_control_spawners
+    # )
 
     initial_manipulator_positioning = Node(
         package="webots_spot",
@@ -86,7 +90,7 @@ def get_ros2_nodes(*args):
         output="screen",
     )
 
-    return [spotarm_driver, waiting_nodes, initial_manipulator_positioning]
+    return [spotarm_driver, initial_manipulator_positioning] + ros2_control_spawners
 
 
 def generate_launch_description():
@@ -94,24 +98,29 @@ def generate_launch_description():
     webots_executable = os.path.join(os.environ.get('WEBOTS_HOME', ''), 'webots')
     world_path = PathJoinSubstitution([package_dir, 'worlds', 'spot.wbt'])
     webots = ExecuteProcess(
-        cmd=[webots_executable, world_path, '--batch', '--mode=realtime', '--stream'],
+        cmd=[webots_executable, world_path, '--batch', '--mode=realtime', '--stream', '--port=1234'],
         output='screen'
     )
 
     ros2_supervisor = Ros2SupervisorLauncher()
 
-    spot_driver = WebotsController(
-        robot_name="Spot",
-        parameters=[
-            {
-                "robot_description": os.path.join(
-                    package_dir, "resource", "spot_control.urdf"
-                ),
-                "use_sim_time": True,
-                "set_robot_state_publisher": False,  # foot positions are wrong with webot's urdf
-            }
+    # Manually launch the Spot driver to force localhost connection
+    webots_controller_executable = os.path.join(get_package_share_directory('webots_ros2_driver'), 'scripts', 'webots-controller')
+    spot_driver = ExecuteProcess(
+        cmd=[
+            webots_controller_executable,
+            '--robot-name=Spot',
+            '--protocol=tcp',
+            '--ip-address=127.0.0.1',  # Force localhost
+            '--port=1234',
+            'ros2',
+            '--ros-args',
+            '-p', 'robot_description:=' + os.path.join(package_dir, "resource", "spot_control.urdf"),
+            '-p', 'use_sim_time:=True',
+            '-p', 'set_robot_state_publisher:=False'
         ],
         respawn=True,
+        output='screen'
     )
 
     with open(os.path.join(package_dir, "resource", "spot.urdf")) as f:
@@ -128,12 +137,6 @@ def generate_launch_description():
             }
         ],
     )
-
-    # spot_pointcloud2 = Node(
-    #     package='webots_spot',
-    #     executable='spot_pointcloud2',
-    #     output='screen',
-    # )
 
     # The following line is important!
     # This event handler respawns the ROS 2 nodes on simulation reset (supervisor process ends).
@@ -181,7 +184,6 @@ def generate_launch_description():
             ros2_supervisor,
             spot_driver,
             robot_state_publisher,
-            # spot_pointcloud2,
             webots_event_handler,
             reset_handler,
             pointcloud_to_laserscan_node,
