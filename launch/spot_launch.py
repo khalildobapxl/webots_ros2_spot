@@ -3,10 +3,11 @@
 import os
 import launch
 from launch import LaunchDescription
+from launch.actions import ExecuteProcess
 from launch.substitutions.path_join_substitution import PathJoinSubstitution
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
-from webots_ros2_driver.webots_launcher import WebotsLauncher, Ros2SupervisorLauncher
+from webots_ros2_driver.webots_launcher import Ros2SupervisorLauncher
 from webots_ros2_driver.webots_controller import WebotsController
 from webots_ros2_driver.wait_for_controller_connection import (
     WaitForControllerConnection,
@@ -89,9 +90,14 @@ def get_ros2_nodes(*args):
 
 
 def generate_launch_description():
-    webots = WebotsLauncher(
-        world=PathJoinSubstitution([package_dir, "worlds", "spot.wbt"])
+    # Manually launch Webots to bypass OS detection issue in WebotsLauncher
+    webots_executable = os.path.join(os.environ.get('WEBOTS_HOME', ''), 'webots')
+    world_path = PathJoinSubstitution([package_dir, 'worlds', 'spot.wbt'])
+    webots = ExecuteProcess(
+        cmd=[webots_executable, world_path, '--batch', '--mode=realtime', '--stream'],
+        output='screen'
     )
+
     ros2_supervisor = Ros2SupervisorLauncher()
 
     spot_driver = WebotsController(
