@@ -153,6 +153,10 @@ class ArenaModifier:
     def timer_cb(self):
         # Stuffs for Arena 3
         if not hasattr(self, "box_colors"):
+            # Check if required objects exist
+            if self.__robot.getFromDef("DropBox1") is None:
+                return
+
             # Randomise Drop Box colors
             self.box_colors = list(BOX_COLOR.keys())
             random.shuffle(self.box_colors)
@@ -181,6 +185,9 @@ class ArenaModifier:
 
             # Initial Arena 3 Score
             self.current_score = 500
+
+        if not hasattr(self, "box_positions"):
+            return
 
         # Open respective doors where box and cube match
         for idx, color in enumerate(self.box_colors):
@@ -238,6 +245,9 @@ class ArenaModifier:
     def check_dropbox_and_cubes(self, color):
         if not hasattr(self, "initial_cube_positions"):
             self.initial_cube_positions = {}
+
+        if not hasattr(self, "box_positions") or color not in self.box_positions:
+            return False
 
         box_tr = self.box_positions[color]
 

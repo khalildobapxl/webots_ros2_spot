@@ -480,6 +480,8 @@ class SpotDriver:
             tf._child_frame_id = x if x != "Spot" else "base_link"
 
             part = self.__robot.getFromDef(x)
+            if part is None:
+                continue
             di = part.getField("translation").getSFVec3f()
             tf.transform.translation.x = -(di[0] - self.spot_translation_initial[0])
             tf.transform.translation.y = -(di[1] - self.spot_translation_initial[1])

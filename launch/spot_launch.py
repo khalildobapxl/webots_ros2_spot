@@ -95,8 +95,9 @@ def get_ros2_nodes(*args):
 
 def generate_launch_description():
     # Manually launch Webots to bypass OS detection issue in WebotsLauncher
+    spot_maze_generator_dir = get_package_share_directory("spot_maze_generator")
     webots_executable = os.path.join(os.environ.get('WEBOTS_HOME', ''), 'webots')
-    world_path = PathJoinSubstitution([package_dir, 'worlds', 'spot.wbt'])
+    world_path = PathJoinSubstitution([spot_maze_generator_dir, 'worlds', 'maze.wbt'])
     webots = ExecuteProcess(
         cmd=[webots_executable, world_path, '--batch', '--mode=realtime', '--stream', '--port=1234'],
         output='screen'
