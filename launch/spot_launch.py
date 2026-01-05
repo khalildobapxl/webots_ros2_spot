@@ -78,12 +78,6 @@ def get_ros2_nodes(*args):
         tiago_gripper_joint_trajectory_controller_spawner,
     ]
 
-    # Wait for the simulation to be ready to start RViz, the navigation and spawners
-    # We can't wait for the driver anymore, so we just return the spawners
-    # waiting_nodes = WaitForControllerConnection(
-    #     target_driver=spotarm_driver, nodes_to_start=ros2_control_spawners
-    # )
-
     initial_manipulator_positioning = Node(
         package="webots_spot",
         executable="retract_manipulator",
